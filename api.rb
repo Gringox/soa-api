@@ -12,13 +12,22 @@ before do
 end
 
 #ROUTES
+
+get '/header' do
+	request.env
+end
+
 get '/apps' do
 	response = Hash.new
 
 	apps = App.all
 
 	if apps
-		apps.to_json(:except => [ :created_at, :updated_at ])
+		if (request.env['HTTP_ACCEPT'].to_s)["json"]
+			apps.to_json(except: [ :created_at, :updated_at ])
+		else
+			apps.to_xml(skip_instruct: true, root: 'Applications', except: [ :created_at, :updated_at ])
+		end
 	else
 		response["error"] = "There's no apps"
 		response.to_json
