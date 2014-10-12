@@ -6,7 +6,7 @@ require './models/app'
 set :database, {adapter: "sqlite3", database: "foo.sqlite3"}
 
 before do
-	content_type :json
+	#content_type :json
 end
 
 #ROUTES
@@ -35,10 +35,17 @@ get '/apps/:id' do |id|
 end
 
 post '/apps' do
-	app = App.new(params)
+	app = App.new
+	app.name = params[:name]
+	app.description = params[:description]
 
 	if app.save
+		source = (app.id).to_s
+		File.open("images/" + source + ".png", "wb") do |f|
+    		f.write(params['myfile'][:tempfile].read)
+  		end
 		status 201
+
 		app.to_json
 	else
 		halt 500
@@ -53,6 +60,12 @@ put '/apps/:id' do |id|
 		app.name = params[:name]
 		app.description = params[:description]
 		if app.save
+			if params['myfile']
+				source = (app.id).to_s
+				File.open("images/" + source + ".png", "wb") do |f|
+    				f.write(params['myfile'][:tempfile].read)
+  				end
+  			end
 			app.to_json
 		else
 			halt 500
@@ -66,6 +79,8 @@ delete '/apps/:id' do |id|
 	app = App.find_by_id(id)
 
 	if app.destroy
+		source = (app.id).to_s
+		File.delete("images/" + source + ".png")
 		{:success => "ok"}.to_json
 	else
 		halt 500
