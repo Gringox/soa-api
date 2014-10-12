@@ -8,7 +8,7 @@ set :database, {adapter: "sqlite3", database: "foo.sqlite3"}
 set :public_folder, './images'
 
 before do
-	#content_type :json
+	content_type :json
 end
 
 #ROUTES
