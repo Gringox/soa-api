@@ -8,94 +8,82 @@ set :database, {adapter: "sqlite3", database: "foo.sqlite3"}
 set :public_folder, './images'
 
 before do
-	content_type :json
+  content_type :json
 end
 
 #ROUTES
-
-get '/header' do
-	request.env
-end
-
 get '/apps' do
-	response = Hash.new
-
-	apps = App.all
-
-	if apps
-		if (request.env['HTTP_ACCEPT'].to_s)["json"]
-			apps.to_json(except: [ :created_at, :updated_at ])
-		else
-			apps.to_xml(skip_instruct: true, root: 'Applications', except: [ :created_at, :updated_at ])
-		end
-	else
-		response["error"] = "There's no apps"
-		response.to_json
-	end
-
+  apps = App.all
+  unless apps.empty?
+    apps.to_json(:except => [ :created_at, :updated_at ])
+  else
+    halt 404
+  end
 end
 
 get '/apps/:id' do |id|
-	app = App.find_by_id(id)
-
-	if app
-		app.to_json
-	else
-		halt 404
-	end
+  app = App.find_by_id(id)
+  if app
+    app.to_json
+  else
+    halt 404
+  end
 end
 
 post '/apps' do
-	app = App.new
-	app.name = params[:name]
-	app.description = params[:description]
-
-	if app.save
-		source = (app.id).to_s
-		File.open("images/" + source + ".png", "wb") do |f|
-    		f.write(params['myfile'][:tempfile].read)
-  		end
-		status 201
-
-		app.to_json
-	else
-		halt 500
-	end
+  begin
+    values = JSON.parse(request.env["rack.input"].read)
+    app = App.new
+    app.name = values['name']
+    app.description = values['description']
+    if app.save
+      status 201
+      app.to_json
+    else
+      status 409
+      {error: "409 Conflict"}.to_json
+    end
+  rescue JSON::ParserError => e
+    status 400
+    {error: "400 Bad Request"}.to_json
+  end
 end
 
 put '/apps/:id' do |id|
-	response = Hash.new
-	app = App.find_by_id(id)
-
-	if app
-		app.name = params[:name]
-		app.description = params[:description]
-		if app.save
-			if params['myfile']
-				source = (app.id).to_s
-				File.open("images/" + source + ".png", "wb") do |f|
-    				f.write(params['myfile'][:tempfile].read)
-  				end
-  			end
-			app.to_json
-		else
-			halt 500
-		end	
-	else
-		halt 500
-	end
+  begin
+    values = JSON.parse(request.env["rack.input"].read)
+    app = App.find_by_id(id)
+    if app
+      app.name = values['name']
+      app.description = values['description']
+      if app.save
+        app.to_json
+      else
+        status 409
+        {error: "409 Conflict"}.to_json
+      end 
+    else
+      halt 404
+    end
+  rescue JSON::ParserError => e
+    status 400
+    {error: "400 Bad Request"}.to_json
+  end
 end
 
 delete '/apps/:id' do |id|
-	app = App.find_by_id(id)
-
-	if app.destroy
-		source = (app.id).to_s
-		File.delete("images/" + source + ".png")
-		{:success => "ok"}.to_json
-	else
-		halt 500
-	end
+  app = App.find_by_id(id)
+  if app
+    if app.destroy
+      status 204
+      ""
+    else
+      status 409
+      {error: "409 Conflict"}.to_json
+    end
+  else
+    halt 404
+  end
 end
 
 not_found do
